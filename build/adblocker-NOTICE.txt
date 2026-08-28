@@ -1,0 +1,13 @@
+Local AdBlocker notices
+
+The blocking engine is @ghostery/adblocker, Copyright Ghostery GmbH,
+licensed under the Mozilla Public License 2.0:
+https://github.com/ghostery/adblocker/blob/master/LICENSE
+
+The bundled ads preset is generated from the upstream list sources declared by
+@ghostery/adblocker 2.18.2, including EasyList, Peter Lowe's list, and selected
+uBlock Origin lists. Their source notices and licenses remain available at:
+https://github.com/ghostery/adblocker/tree/master/packages/adblocker/assets
+
+The generated engine is bundled so Local does not need to fetch filter lists
+when the browser starts. No Local-owned server is involved.

@@ -1,0 +1,56 @@
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import type { Bookmark, TabState } from '../../shared/types';
+import { Icon } from './Icon';
+import { IconButton } from './IconButton';
+import { TabStrip } from './TabStrip';
+
+interface Props {
+  tabs: TabState[];
+  activeTab: TabState | undefined;
+  privateWindow: boolean;
+  bookmarks: Bookmark[];
+  showBookmarksBar: boolean;
+  onSettings(): void;
+  onFocusReady(handler: () => void): void;
+}
+
+export function Toolbar({ tabs, activeTab, privateWindow, bookmarks, showBookmarksBar, onSettings, onFocusReady }: Props) {
+  const [value, setValue] = useState('');
+  const [editing, setEditing] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (!editing) setValue(formatAddress(activeTab?.url ?? '')); }, [activeTab?.url, editing]);
+  useEffect(() => onFocusReady(() => { input.current?.focus(); input.current?.select(); }), [onFocusReady]);
+  const submit = (event: FormEvent) => { event.preventDefault(); if (value.trim()) void window.local.navigate(value); input.current?.blur(); };
+
+  return <header className={`chrome ${showBookmarksBar ? 'with-bookmarks' : ''}`}>
+    <TabStrip tabs={tabs} activeTabId={activeTab?.id ?? null} privateWindow={privateWindow} />
+    <div className="toolbar">
+      <div className="nav-controls">
+        <IconButton label="Back" icon="arrow-left" disabled={!activeTab?.canGoBack} onClick={() => void window.local.goBack()} />
+        <IconButton label="Forward" icon="arrow-right" disabled={!activeTab?.canGoForward} onClick={() => void window.local.goForward()} />
+        <IconButton label={activeTab?.loading ? 'Stop' : 'Reload'} icon={activeTab?.loading ? 'x' : 'reload'} disabled={activeTab?.url.startsWith('local://')} onClick={() => void (activeTab?.loading ? window.local.stop() : window.local.reload())} />
+      </div>
+      <form className="address-wrap" onSubmit={submit}>
+        <Icon name="search" size={16} />
+        <input ref={input} value={value} onChange={(event) => setValue(event.target.value)} onFocus={() => { setEditing(true); setValue(activeTab?.url === 'local://newtab' ? '' : activeTab?.url ?? ''); requestAnimationFrame(() => input.current?.select()); }} onBlur={() => { setEditing(false); setValue(formatAddress(activeTab?.url ?? '')); }} placeholder="Search or enter a website" aria-label="Search or enter a website" spellCheck={false} />
+      </form>
+      <div className="toolbar-actions">
+        <IconButton label="Bookmark this page" icon="star" disabled={activeTab?.url.startsWith('local://')} onClick={() => void window.local.addBookmark()} />
+        <IconButton label="Extensions" icon="puzzle" onClick={() => void window.local.openExtensions()} />
+        <IconButton label="Local menu" icon="menu" onClick={onSettings} />
+      </div>
+    </div>
+    {showBookmarksBar && <nav className="bookmarks-bar" aria-label="Bookmarks">
+      {bookmarks.length ? bookmarks.map((bookmark) => <button key={bookmark.id} onClick={() => void window.local.navigate(bookmark.url)}>{bookmark.title}</button>) : <span>Bookmark a page with the star to keep it here.</span>}
+    </nav>}
+    {activeTab?.loading && <div className="chrome-loading" aria-hidden="true"><i /></div>}
+  </header>;
+}
+
+function formatAddress(url: string): string {
+  if (!url || url === 'local://newtab') return '';
+  if (url === 'local://extensions') return url;
+  if (url.startsWith('local://search?')) { try { return new URL(url).searchParams.get('q') ?? ''; } catch { return ''; } }
+  try { const parsed = new URL(url); return `${parsed.hostname.replace(/^www\./, '')}${parsed.pathname === '/' ? '' : parsed.pathname}`; }
+  catch { return url; }
+}
