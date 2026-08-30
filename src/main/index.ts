@@ -179,6 +179,9 @@ function registerIpc(): void {
     await managerFor(event).createTab({ url: 'local://extensions' });
     if (extensionPopupOwners.has(event.sender.id)) BrowserWindow.fromWebContents(event.sender)?.close();
   });
+  ipcMain.handle('settings:open', async (event) => {
+    await managerFor(event).createTab({ url: 'local://settings' });
+  });
   ipcMain.handle('extensions:popup', async (event, anchor: unknown, view: unknown) => {
     const parent = BrowserWindow.fromWebContents(event.sender);
     if (!parent || !isExtensionPopupView(view)) return;
@@ -231,7 +234,6 @@ function registerIpc(): void {
     if (scope === 'siteData' || scope === 'all') await session.fromPartition('persist:local').clearStorageData();
     if (scope === 'all') await store.clearAll();
     const manager = managerFor(event);
-    manager.setOverlay(true);
     managerForWindow(manager);
   });
   ipcMain.handle('bookmarks:add', async (event) => managerFor(event).addBookmark());

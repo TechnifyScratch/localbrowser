@@ -2,9 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { Settings as SettingsType, UpdateState } from '../../shared/types';
 import { Icon } from '../components/Icon';
 
-interface Props { settings: SettingsType; onClose(): void; onChange(patch: Partial<SettingsType>): void; }
+interface Props { settings: SettingsType; onChange(patch: Partial<SettingsType>): void; }
 
-export function Settings({ settings, onClose, onChange }: Props) {
+export function Settings({ settings, onChange }: Props) {
   const [update, setUpdate] = useState<UpdateState | null>(null);
   useEffect(() => {
     void window.local.getUpdateState().then(setUpdate);
@@ -15,8 +15,9 @@ export function Settings({ settings, onClose, onChange }: Props) {
     const prompt = update?.delivery === 'dmg' ? 'Open the verified DMG now? You’ll drag Local into Applications to replace the current version.' : 'Relaunch Local and install the downloaded update now?';
     if (confirm(prompt)) void window.local.installUpdate();
   };
-  return <div className="settings-backdrop" role="dialog" aria-modal="true" aria-label="Settings"><section className="settings-panel">
-    <header><div><p className="eyebrow">LOCAL</p><h1>Settings</h1></div><button className="close-settings" onClick={onClose} aria-label="Close settings"><Icon name="x" size={17} /></button></header>
+  return <main className="settings-page">
+    <div className="settings-layout">
+    <header className="settings-heading"><span className="settings-mark"><Icon name="sliders" size={25} /></span><div><p className="eyebrow">LOCAL</p><h1>Settings</h1><p>Simple controls for browsing, privacy, and data stored on this Mac.</p></div></header>
     <SettingsSection title="Privacy">
       <Toggle label="Block third-party cookies" detail="May sign you out of some embedded services." checked={settings.blockThirdPartyCookies} onChange={(value) => onChange({ blockThirdPartyCookies: value })} />
       <Toggle label="Strip tracking parameters" detail="Removes common campaign identifiers from links." checked={settings.stripTrackingParameters} onChange={(value) => onChange({ stripTrackingParameters: value })} />
@@ -42,8 +43,9 @@ export function Settings({ settings, onClose, onChange }: Props) {
       </div>
     </SettingsSection>
     <SettingsSection title="Data" aside="Stored only on this Mac"><div className="data-actions"><button onClick={() => void window.local.clearData('history')}>Clear history</button><button onClick={() => void window.local.clearData('siteData')}>Clear cookies & site data</button><button className="danger" onClick={() => { if (confirm('Clear all Local browsing data and settings?')) void window.local.clearData('all'); }}>Clear all Local data</button></div></SettingsSection>
-    <footer><button onClick={() => void window.local.openPrivateWindow()}>New private window</button><span>Local {update?.currentVersion ?? '0.18.0'}</span></footer>
-  </section></div>;
+    <footer><button onClick={() => void window.local.openPrivateWindow()}>New private window</button><span>Local {update?.currentVersion ?? '0.18.1'}</span></footer>
+    </div>
+  </main>;
 }
 
 function updateTitle(update: UpdateState | null): string {

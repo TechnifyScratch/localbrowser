@@ -20,6 +20,7 @@ const api: LocalAPI = {
   showTabContextMenu: (id) => ipcRenderer.invoke('tabs:context-menu', id),
   showTabOverview: () => ipcRenderer.invoke('tabs:overview'),
   openExtensions: () => ipcRenderer.invoke('extensions:open'),
+  openSettings: () => ipcRenderer.invoke('settings:open'),
   showExtensionsPopup: (anchor, view) => ipcRenderer.invoke('extensions:popup', anchor, view),
   closeExtensionsPopup: () => ipcRenderer.invoke('extensions:close-popup'),
   resizeExtensionsPopup: (view) => ipcRenderer.invoke('extensions:resize-popup', view),

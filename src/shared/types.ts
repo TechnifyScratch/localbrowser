@@ -161,6 +161,7 @@ export interface LocalAPI {
   showTabContextMenu(id: string): Promise<void>;
   showTabOverview(): Promise<void>;
   openExtensions(): Promise<void>;
+  openSettings(): Promise<void>;
   showExtensionsPopup(anchor: { x: number; y: number; width: number; height: number }, view: ExtensionPopupView): Promise<void>;
   closeExtensionsPopup(): Promise<void>;
   resizeExtensionsPopup(view: ExtensionPopupView): Promise<void>;

@@ -152,6 +152,10 @@ export class BrowserManager {
       this.setExtensions(record);
       return;
     }
+    if (url === 'local://settings') {
+      this.setSettings(record);
+      return;
+    }
     if (isLocalSearch(record.state.url)) record.returnToSearch = record.state.url;
     const view = record.view ?? this.createView(record);
     if (!this.overlayOpen) {
@@ -328,6 +332,25 @@ export class BrowserManager {
       ...record.state,
       title: 'Extensions',
       url: 'local://extensions',
+      favicon: undefined,
+      loading: false,
+      canGoBack: false,
+      canGoForward: false,
+    };
+    this.emit();
+  }
+
+  private setSettings(record: TabRecord): void {
+    if (record.view) {
+      this.window.removeBrowserView(record.view);
+      record.view.webContents.close();
+      record.view = null;
+    }
+    record.returnToSearch = undefined;
+    record.state = {
+      ...record.state,
+      title: 'Settings',
+      url: 'local://settings',
       favicon: undefined,
       loading: false,
       canGoBack: false,

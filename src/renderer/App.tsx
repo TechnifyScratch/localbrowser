@@ -11,15 +11,13 @@ import { LaunchScreen } from './components/LaunchScreen';
 
 export function App() {
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [permission, setPermission] = useState<PermissionRequest | null>(null);
   const [download, setDownload] = useState<DownloadState | null>(null);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [launching, setLaunching] = useState(true);
   const [launchStarted, setLaunchStarted] = useState(false);
   const focusAddress = useRef<() => void>(() => undefined);
-  const openSettings = useCallback(() => { setSettingsOpen(true); void window.local.setOverlay(true); }, []);
-  const closeSettings = useCallback(() => { setSettingsOpen(false); void window.local.setOverlay(false); }, []);
+  const openSettings = useCallback(() => { void window.local.openSettings(); }, []);
 
   useEffect(() => {
     void window.local.getSnapshot().then(setSnapshot);
@@ -47,7 +45,7 @@ export function App() {
     {activeTab?.url === 'local://newtab' && <NewTab privateWindow={snapshot.privateWindow} settings={snapshot.settings} onChangeSettings={(patch) => void changeSettings(patch)} onOpenSettings={openSettings} />}
     {activeTab?.url.startsWith('local://search?') && <SearchResults url={activeTab.url} privateWindow={snapshot.privateWindow} />}
     {activeTab?.url === 'local://extensions' && <Extensions settings={snapshot.settings} onChange={(patch) => void changeSettings(patch)} />}
-    {settingsOpen && <Settings settings={snapshot.settings} onClose={closeSettings} onChange={(patch) => void changeSettings(patch)} />}
+    {activeTab?.url === 'local://settings' && <Settings settings={snapshot.settings} onChange={(patch) => void changeSettings(patch)} />}
     {permission && <div className="permission-toast"><div><b>{permission.origin}</b><span>wants to use your {permission.permission}.</span></div><button onClick={() => { void window.local.respondPermission(permission.id, false); setPermission(null); }}>Don’t allow</button><button className="allow" onClick={() => { void window.local.respondPermission(permission.id, true); setPermission(null); }}>Allow once</button></div>}
     {download && <div className="download-toast"><span><Icon name={download.status === 'completed' ? 'check' : 'download'} size={16} /></span><div><b>{download.filename}</b><i style={{ width: `${Math.round(download.progress * 100)}%` }} /></div></div>}
     {launchScreen}

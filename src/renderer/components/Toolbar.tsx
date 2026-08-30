@@ -57,7 +57,7 @@ export function Toolbar({ tabs, activeTab, privateWindow, bookmarks, settings, o
 
 function formatAddress(url: string): string {
   if (!url || url === 'local://newtab') return '';
-  if (url === 'local://extensions') return url;
+  if (url === 'local://extensions' || url === 'local://settings') return url;
   if (url.startsWith('local://search?')) { try { return new URL(url).searchParams.get('q') ?? ''; } catch { return ''; } }
   try { const parsed = new URL(url); return `${parsed.hostname.replace(/^www\./, '')}${parsed.pathname === '/' ? '' : parsed.pathname}`; }
   catch { return url; }
