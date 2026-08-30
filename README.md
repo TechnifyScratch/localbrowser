@@ -2,6 +2,8 @@
 
 Local is a deliberately small, local-first browser for macOS. It uses Electron's Chromium engine for real web compatibility while keeping Local-owned browser state on the Mac.
 
+Local 0.18 opens with a short, motion-sensitive wordmark sequence: the black Local mark resolves into Local’s warm-to-violet-to-blue accent before the browser surface fades in. The sequence keeps webpage views detached until it completes so restored websites cannot cover the launch presentation. Extension pin controls use explicit upright pinned and crossed-out unpinned symbols rather than rotating one ambiguous icon.
+
 ## Run it
 
 Requirements: macOS, Node.js 20 or newer, and npm.
@@ -85,11 +87,11 @@ For searches whose top Wikidata entity is explicitly classified as a human, Loca
 
 Tabs can be pinned, reordered within pinned or regular sections, duplicated, closed in groups, and reopened from an in-memory recently-closed list. Pinned state and tab order are included in optional local session restoration.
 
-The toolbar’s puzzle-piece button opens Local’s built-in Extensions page in a new tab. The same page is available at `local://extensions`. The surface debuted empty in version 0.12 and remains intentionally small: there is no marketplace or remote extension catalog.
+The toolbar’s puzzle-piece button opens an anchored extension popover above webpage content. AdBlocker can be pinned beside it for direct access, and both pin state and protection state persist locally. “Manage extensions” opens the full page at `local://extensions`. There is no marketplace or remote extension catalog.
 
-Local 0.15 adds one built-in extension, AdBlocker. It is enabled by default and can be paused from `local://extensions`. A compiled ads-only ruleset ships inside the application, so Local does not contact a filter-list service during browser startup or send visited URLs to a Local server. Network rules cancel matching subresource requests before they load, while CSS cosmetic rules hide many leftover ad containers. The switch is stored in Local’s on-device settings; reload existing pages after changing it.
+Local 0.17 includes one built-in extension, AdBlocker. It is enabled by default and can be paused from its toolbar panel or `local://extensions`. A compiled ad, privacy, and annoyance ruleset ships inside the application, so Local does not contact a filter-list service during browser startup or send visited URLs to a Local server. Network rules cancel matching ad and tracking subresources before they load. Cosmetic rules and bundled filter-list scriptlets remove many leftover ad containers and cookie notices. The switch is stored in Local’s on-device settings; reload existing pages after changing it.
 
-AdBlocker uses the MPL-2.0 `@ghostery/adblocker` engine and an offline snapshot generated from its documented ads preset, including EasyList, Peter Lowe’s list, and selected uBlock Origin lists. Notices ship beside the engine in `adblocker-NOTICE.txt`. Filter coverage evolves and websites can serve first-party or newly changed advertising, so Local does not claim that every ad will always be blocked. Rules currently update when Local itself is updated rather than through a background list service.
+AdBlocker uses the MPL-2.0 `@ghostery/adblocker` engine and an offline snapshot generated from its documented full preset, including EasyList, EasyPrivacy, cookie-notice lists, Peter Lowe’s list, and selected [uBlock Origin](https://github.com/gorhill/uBlock) lists. It is not presented as the official uBlock Origin extension: Electron supports only a subset of Chrome extension APIs, and the official extension itself is GPL-3.0. Local adds a document-start YouTube cleanup layer for dynamic first-party ad surfaces that ordinary network rules miss. YouTube changes its delivery frequently, so Local still does not claim permanent or complete YouTube ad blocking. Notices ship beside the engine in `adblocker-NOTICE.txt`; rules update with Local rather than through a background list service.
 
 Tab context and overview menus are native Electron/macOS menus rather than webpage-layer popovers. This keeps them above Chromium webpage content regardless of the active site's stacking contexts or embedded browser view.
 
@@ -97,7 +99,8 @@ Private windows use a unique, in-memory-style non-persistent Chromium partition.
 
 Privacy defaults include:
 
-- outgoing third-party cookie suppression, configurable in Settings;
+- incoming and outgoing third-party cookie suppression, configurable in Settings (first-party cookies remain available for logins and carts);
+- Global Privacy Control (`Sec-GPC: 1`) and Do Not Track (`DNT: 1`) request signals;
 - removal of a conservative list of common campaign parameters during top-level navigation;
 - explicit prompts for camera, microphone, notifications, and location;
 - disabled Chromium features for translation, media routing, component updates, optimization hints, and domain reliability reporting;
@@ -107,9 +110,9 @@ Privacy defaults include:
 
 Local cannot make browsing traffic local. Websites, search providers, CDNs, DNS resolvers, downloads, and embedded resources communicate with their respective servers. Private mode only means Local avoids retaining that window's session; it does not hide activity from websites, an ISP, an employer, a school, device administrators, or network administrators.
 
-Electron bundles Chromium. Although Local disables several unneeded background services, Chromium is a large evolving dependency and this project does not claim to have eliminated every possible Chromium-originated network request. Third-party cookie suppression is implemented at the request-header layer; it is intentionally conservative and is not a complete anti-fingerprinting or content-blocking system. The source is structured so a maintained filter-list engine can be added later.
+Electron bundles Chromium. Although Local disables several unneeded background services, Chromium is a large evolving dependency and this project does not claim to have eliminated every possible Chromium-originated network request. Third-party cookie suppression is implemented at the request and response-header layers; it is intentionally conservative and is not a complete anti-fingerprinting system. First-party cookies remain enabled because blocking all cookies would break sign-in, carts, and many ordinary sites.
 
-Downloads use Chromium's normal local download flow. Certificate validation and the operating system's network stack remain in effect. The update client and GitHub release workflow are implemented; unsigned builds use a verified-DMG fallback, while seamless in-place macOS updates still require Developer ID signing and Apple notarization. A tracker filter list, a full history/bookmarks UI, and universal-binary release automation remain production follow-ups rather than hidden claims in V1.
+Downloads use Chromium's normal local download flow. Certificate validation and the operating system's network stack remain in effect. The update client and GitHub release workflow are implemented; unsigned builds use a verified-DMG fallback, while seamless in-place macOS updates still require Developer ID signing and Apple notarization. A full history/bookmarks UI and universal-binary release automation remain production follow-ups rather than hidden claims in V1.
 
 ## Structure
 

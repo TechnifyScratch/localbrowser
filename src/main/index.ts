@@ -1,10 +1,10 @@
-import { app, BrowserWindow, ipcMain, Menu, session, shell, type MenuItemConstructorOptions } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, screen, session, shell, type MenuItemConstructorOptions } from 'electron';
 import path from 'node:path';
 import { BrowserManager } from './browser-manager';
 import { LocalStore } from './storage';
 import { LocalUpdater } from './updater';
 import { initializeAdBlocker } from '../privacy/adblocker';
-import type { CollectionColor, SearchCategory, SearchProviderId, Settings } from '../shared/types';
+import type { CollectionColor, ExtensionPopupView, SearchCategory, SearchProviderId, Settings } from '../shared/types';
 
 app.commandLine.appendSwitch('disable-features', 'MediaRouter,OptimizationHints,AutofillServerCommunication,Translate');
 app.commandLine.appendSwitch('disable-component-update');
@@ -14,6 +14,9 @@ app.commandLine.appendSwitch('no-pings');
 let store: LocalStore;
 const updater = new LocalUpdater();
 const managers = new Map<number, BrowserManager>();
+const extensionPopupOwners = new Map<number, BrowserManager>();
+const extensionPopups = new Map<number, BrowserWindow>();
+const launchStartedWindows = new Set<number>();
 
 const isMac = process.platform === 'darwin';
 const allowedSettingKeys = new Set<keyof Settings>([
@@ -21,7 +24,7 @@ const allowedSettingKeys = new Set<keyof Settings>([
   'showBookmarksBar', 'searchProvider', 'onboardingComplete',
   'showCollections', 'showToday', 'localSearchResults',
   'automaticUpdateChecks',
-  'adBlockerEnabled',
+  'adBlockerEnabled', 'adBlockerPinned',
 ]);
 
 async function createWindow(privateWindow = false): Promise<BrowserWindow> {
@@ -48,7 +51,7 @@ async function createWindow(privateWindow = false): Promise<BrowserWindow> {
   const manager = new BrowserManager(window, store, privateWindow, session.fromPartition(partition, { cache: !privateWindow }));
   const windowId = window.webContents.id;
   managers.set(windowId, manager);
-  window.on('closed', () => managers.delete(windowId));
+  window.on('closed', () => { managers.delete(windowId); launchStartedWindows.delete(windowId); });
 
   if (process.env.VITE_DEV_SERVER_URL) await window.loadURL(process.env.VITE_DEV_SERVER_URL);
   else await window.loadFile(path.join(__dirname, '../renderer/index.html'));
@@ -61,14 +64,70 @@ async function createWindow(privateWindow = false): Promise<BrowserWindow> {
   } else {
     await manager.createTab();
   }
-  window.once('ready-to-show', () => window.show());
   return window;
 }
 
 function managerFor(event: Electron.IpcMainInvokeEvent): BrowserManager {
-  const manager = managers.get(event.sender.id);
+  const manager = managers.get(event.sender.id) ?? extensionPopupOwners.get(event.sender.id);
   if (!manager) throw new Error('Browser window is unavailable');
   return manager;
+}
+
+interface PopupAnchor { x: number; y: number; width: number; height: number; }
+
+async function showExtensionPopup(parent: BrowserWindow, owner: BrowserManager, anchor: PopupAnchor, view: ExtensionPopupView): Promise<void> {
+  extensionPopups.get(parent.id)?.close();
+  const width = 342;
+  const height = extensionPopupHeight(view);
+  const content = parent.getContentBounds();
+  const workArea = screen.getDisplayMatching(parent.getBounds()).workArea;
+  const desiredX = content.x + anchor.x + anchor.width - width;
+  const desiredY = content.y + anchor.y + anchor.height + 6;
+  const x = Math.round(Math.min(Math.max(desiredX, workArea.x + 8), workArea.x + workArea.width - width - 8));
+  const y = Math.round(Math.min(Math.max(desiredY, workArea.y + 8), workArea.y + workArea.height - height - 8));
+  const popup = new BrowserWindow({
+    parent,
+    x, y, width, height,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+    },
+  });
+  popup.setWindowButtonVisibility(false);
+  const popupWebContentsId = popup.webContents.id;
+  extensionPopups.set(parent.id, popup);
+  extensionPopupOwners.set(popupWebContentsId, owner);
+  popup.on('blur', () => { if (!popup.isDestroyed()) popup.close(); });
+  popup.on('closed', () => {
+    extensionPopupOwners.delete(popupWebContentsId);
+    if (extensionPopups.get(parent.id) === popup) extensionPopups.delete(parent.id);
+  });
+  popup.once('ready-to-show', () => { if (!popup.isDestroyed()) popup.show(); });
+  if (process.env.VITE_DEV_SERVER_URL) await popup.loadURL(`${process.env.VITE_DEV_SERVER_URL}?surface=extensions&view=${view}`);
+  else await popup.loadFile(path.join(__dirname, '../renderer/index.html'), { query: { surface: 'extensions', view } });
+}
+
+function extensionPopupHeight(view: ExtensionPopupView): number { return view === 'adblocker' ? 378 : 225; }
+
+function isExtensionPopupView(value: unknown): value is ExtensionPopupView { return value === 'list' || value === 'adblocker'; }
+
+function validatePopupAnchor(value: unknown): PopupAnchor | null {
+  if (!value || typeof value !== 'object') return null;
+  const anchor = value as Record<string, unknown>;
+  if (!['x', 'y', 'width', 'height'].every((key) => typeof anchor[key] === 'number' && Number.isFinite(anchor[key]) && Math.abs(anchor[key] as number) < 10_000)) return null;
+  return { x: anchor.x as number, y: anchor.y as number, width: anchor.width as number, height: anchor.height as number };
 }
 
 function registerIpc(): void {
@@ -116,7 +175,30 @@ function registerIpc(): void {
     }
     Menu.buildFromTemplate(template).popup({ window });
   });
-  ipcMain.handle('extensions:open', async (event) => managerFor(event).createTab({ url: 'local://extensions' }));
+  ipcMain.handle('extensions:open', async (event) => {
+    await managerFor(event).createTab({ url: 'local://extensions' });
+    if (extensionPopupOwners.has(event.sender.id)) BrowserWindow.fromWebContents(event.sender)?.close();
+  });
+  ipcMain.handle('extensions:popup', async (event, anchor: unknown, view: unknown) => {
+    const parent = BrowserWindow.fromWebContents(event.sender);
+    if (!parent || !isExtensionPopupView(view)) return;
+    const position = validatePopupAnchor(anchor);
+    if (!position) return;
+    await showExtensionPopup(parent, managerFor(event), position, view);
+  });
+  ipcMain.handle('extensions:close-popup', (event) => BrowserWindow.fromWebContents(event.sender)?.close());
+  ipcMain.handle('extensions:resize-popup', (event, view: unknown) => {
+    if (!isExtensionPopupView(view)) return;
+    const popup = BrowserWindow.fromWebContents(event.sender);
+    if (popup && extensionPopupOwners.has(event.sender.id)) popup.setSize(342, extensionPopupHeight(view), true);
+  });
+  ipcMain.handle('launch:ready', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (!window || !managers.has(event.sender.id) || launchStartedWindows.has(event.sender.id)) return;
+    launchStartedWindows.add(event.sender.id);
+    if (!window.isVisible()) window.show();
+    setTimeout(() => { if (!window.isDestroyed()) window.webContents.send('launch:start'); }, 100);
+  });
   ipcMain.handle('browser:navigate', async (event, input: unknown) => { if (typeof input === 'string' && input.length <= 8_192) await managerFor(event).navigate(input); });
   ipcMain.handle('search:query', async (event, query: unknown, category: unknown) => {
     if (typeof query !== 'string' || !query.trim() || query.length > 512) throw new Error('Invalid search query');

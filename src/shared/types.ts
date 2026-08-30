@@ -1,4 +1,5 @@
 export type SearchProviderId = 'duckduckgo' | 'brave' | 'google';
+export type ExtensionPopupView = 'list' | 'adblocker';
 
 export interface Settings {
   blockThirdPartyCookies: boolean;
@@ -12,6 +13,7 @@ export interface Settings {
   showToday: boolean;
   automaticUpdateChecks: boolean;
   adBlockerEnabled: boolean;
+  adBlockerPinned: boolean;
 }
 
 export interface UpdateState {
@@ -159,6 +161,10 @@ export interface LocalAPI {
   showTabContextMenu(id: string): Promise<void>;
   showTabOverview(): Promise<void>;
   openExtensions(): Promise<void>;
+  showExtensionsPopup(anchor: { x: number; y: number; width: number; height: number }, view: ExtensionPopupView): Promise<void>;
+  closeExtensionsPopup(): Promise<void>;
+  resizeExtensionsPopup(view: ExtensionPopupView): Promise<void>;
+  readyForLaunch(): Promise<void>;
   navigate(input: string): Promise<void>;
   search(query: string, category: SearchCategory): Promise<SearchResponse>;
   goBack(): Promise<void>;
@@ -191,4 +197,5 @@ export interface LocalAPI {
   onPermissionRequest(listener: (request: PermissionRequest) => void): () => void;
   onDownload(listener: (download: DownloadState) => void): () => void;
   onUpdateState(listener: (state: UpdateState) => void): () => void;
+  onLaunchStart(listener: () => void): () => void;
 }

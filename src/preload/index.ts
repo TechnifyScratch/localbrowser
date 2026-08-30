@@ -20,6 +20,10 @@ const api: LocalAPI = {
   showTabContextMenu: (id) => ipcRenderer.invoke('tabs:context-menu', id),
   showTabOverview: () => ipcRenderer.invoke('tabs:overview'),
   openExtensions: () => ipcRenderer.invoke('extensions:open'),
+  showExtensionsPopup: (anchor, view) => ipcRenderer.invoke('extensions:popup', anchor, view),
+  closeExtensionsPopup: () => ipcRenderer.invoke('extensions:close-popup'),
+  resizeExtensionsPopup: (view) => ipcRenderer.invoke('extensions:resize-popup', view),
+  readyForLaunch: () => ipcRenderer.invoke('launch:ready'),
   navigate: (input) => ipcRenderer.invoke('browser:navigate', input),
   search: (query, category) => ipcRenderer.invoke('search:query', query, category),
   goBack: () => ipcRenderer.invoke('browser:back'),
@@ -52,6 +56,7 @@ const api: LocalAPI = {
   onPermissionRequest: (listener) => subscribe<PermissionRequest>('permission:request', listener),
   onDownload: (listener) => subscribe<DownloadState>('download:update', listener),
   onUpdateState: (listener) => subscribe<UpdateState>('update:state', listener),
+  onLaunchStart: (listener) => subscribe<void>('launch:start', listener),
 };
 
 contextBridge.exposeInMainWorld('local', api);

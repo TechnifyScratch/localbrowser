@@ -49,14 +49,45 @@ export function resolveInput(input: string, provider: SearchProviderId, shouldSt
 
 export function configurePrivacySession(session: Session, blockThirdPartyCookies: () => boolean): void {
   session.webRequest.onBeforeSendHeaders((details, callback) => {
-    if (!blockThirdPartyCookies() || !details.requestHeaders.Cookie) return callback({ requestHeaders: details.requestHeaders });
-    try {
-      const destination = new URL(details.url).hostname;
-      const originHeader = details.requestHeaders.Origin ?? details.requestHeaders.Referer;
-      const initiator = originHeader ? new URL(originHeader).hostname : destination;
-      const sameSite = destination === initiator || destination.endsWith(`.${initiator}`) || initiator.endsWith(`.${destination}`);
-      if (!sameSite) delete details.requestHeaders.Cookie;
-    } catch { /* Keep headers when Chromium does not provide a parseable initiator. */ }
+    deleteHeader(details.requestHeaders, 'dnt');
+    deleteHeader(details.requestHeaders, 'sec-gpc');
+    details.requestHeaders.DNT = '1';
+    details.requestHeaders['Sec-GPC'] = '1';
+    const initiator = details.referrer || details.frame?.url || details.webContents?.getURL() || '';
+    if (blockThirdPartyCookies() && isThirdParty(details.url, initiator, details.resourceType)) {
+      deleteHeader(details.requestHeaders, 'cookie');
+    }
     callback({ requestHeaders: details.requestHeaders });
   });
+
+  session.webRequest.onHeadersReceived({ urls: ['<all_urls>'] }, (details, callback) => {
+    const responseHeaders = details.responseHeaders;
+    const initiator = details.referrer || details.frame?.url || details.webContents?.getURL() || '';
+    if (blockThirdPartyCookies() && responseHeaders && isThirdParty(details.url, initiator, details.resourceType)) {
+      deleteHeader(responseHeaders, 'set-cookie');
+      deleteHeader(responseHeaders, 'set-cookie2');
+    }
+    callback({ responseHeaders });
+  });
+}
+
+function deleteHeader(headers: Record<string, unknown>, target: string): void {
+  for (const name of Object.keys(headers)) {
+    if (name.toLowerCase() === target) delete headers[name];
+  }
+}
+
+function isThirdParty(destinationUrl: string, referrer: string, resourceType: string): boolean {
+  if (resourceType === 'mainFrame' || !referrer) return false;
+  try {
+    const destination = new URL(destinationUrl).hostname;
+    const initiator = new URL(referrer).hostname;
+    return !sameSite(destination, initiator);
+  } catch {
+    return false;
+  }
+}
+
+function sameSite(left: string, right: string): boolean {
+  return left === right || left.endsWith(`.${right}`) || right.endsWith(`.${left}`);
 }

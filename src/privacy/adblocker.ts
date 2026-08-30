@@ -23,10 +23,11 @@ export function configureAdBlockerSession(browserSession: Session, enabled: () =
       callback({});
       return;
     }
+    const sourceUrl = details.referrer || details.webContents?.getURL() || details.url;
     const request = Request.fromRawDetails({
       _originalRequestDetails: details,
       requestId: `${details.id}`,
-      sourceUrl: details.referrer,
+      sourceUrl,
       tabId: details.webContentsId,
       type: details.resourceType || 'other',
       url: details.url,
@@ -41,8 +42,15 @@ export function configureAdBlockerSession(browserSession: Session, enabled: () =
   });
 }
 
-export function cosmeticAdStyles(url: string, enabled: boolean): string {
-  if (!enabled || !blocker) return '';
+export interface AdBlockCosmetics {
+  styles: string;
+  scripts: string[];
+}
+
+const noCosmetics: AdBlockCosmetics = { styles: '', scripts: [] };
+
+export function cosmeticAdPayload(url: string, enabled: boolean): AdBlockCosmetics {
+  if (!enabled || !blocker) return noCosmetics;
   try {
     const hostname = new URL(url).hostname;
     const labels = hostname.split('.');
@@ -57,6 +65,6 @@ export function cosmeticAdStyles(url: string, enabled: boolean): string {
       getRulesFromDOM: false,
       getRulesFromHostname: true,
     });
-    return result.active === false ? '' : result.styles;
-  } catch { return ''; }
+    return result.active === false ? noCosmetics : { styles: result.styles, scripts: result.scripts };
+  } catch { return noCosmetics; }
 }

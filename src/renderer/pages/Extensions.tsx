@@ -20,17 +20,20 @@ export function Extensions({ settings, onChange }: Props) {
           <div className="extension-icon"><Icon name="block" size={25} /></div>
           <div className="extension-details">
             <div className="extension-title"><h2>AdBlocker</h2><span>Built in</span></div>
-            <p>Blocks common advertising requests with rules bundled inside Local, before the ads load.</p>
-            <small>{enabled ? 'On for websites you visit' : 'Paused for all websites'} · Reload open pages after changing this.</small>
+            <p>Blocks ads, trackers, and cookie notices with EasyList, EasyPrivacy, and uBlock Origin-compatible rules bundled inside Local.</p>
+            <small>{enabled ? 'Ads, tracking requests, and cookie notices are filtered' : 'Paused for all websites'} · Reload open pages after changing this.</small>
           </div>
-          <label className="extension-switch">
-            <span>{enabled ? 'On' : 'Off'}</span>
-            <input className="toggle" type="checkbox" checked={enabled} onChange={(event) => onChange({ adBlockerEnabled: event.target.checked })} aria-label="Enable AdBlocker" />
-          </label>
+          <div className="extension-card-actions">
+            <button className={settings.adBlockerPinned ? 'pinned' : ''} onClick={() => onChange({ adBlockerPinned: !settings.adBlockerPinned })}><Icon name={settings.adBlockerPinned ? 'pin' : 'pin-off'} size={16} />{settings.adBlockerPinned ? 'Pinned' : 'Pin'}</button>
+            <label className="extension-switch">
+              <span>{enabled ? 'On' : 'Off'}</span>
+              <input className="toggle" type="checkbox" checked={enabled} onChange={(event) => onChange({ adBlockerEnabled: event.target.checked })} aria-label="Enable AdBlocker" />
+            </label>
+          </div>
         </article>
       </section>
 
-      <p className="extensions-footnote">AdBlocker does not send visited URLs to Local. Its bundled rules catch many common ads, but no blocker can guarantee every ad on every website.</p>
+      <p className="extensions-footnote">AdBlocker does not send visited URLs to Local. It includes current YouTube-specific rules, but YouTube and other sites change frequently, so no blocker can guarantee every ad indefinitely.</p>
     </div>
   </main>;
 }

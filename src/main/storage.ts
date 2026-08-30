@@ -23,6 +23,7 @@ export const defaultSettings: Settings = {
   showToday: true,
   automaticUpdateChecks: false,
   adBlockerEnabled: true,
+  adBlockerPinned: false,
 };
 
 const starterCollections: Collection[] = [

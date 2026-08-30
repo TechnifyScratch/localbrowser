@@ -1,6 +1,6 @@
 {
   "name": "local-browser",
-  "version": "0.15.0",
+  "version": "0.18.0",
   "private": true,
   "description": "A small, local-first browser for macOS.",
   "repository": {

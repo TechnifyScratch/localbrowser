@@ -4,9 +4,11 @@ The blocking engine is @ghostery/adblocker, Copyright Ghostery GmbH,
 licensed under the Mozilla Public License 2.0:
 https://github.com/ghostery/adblocker/blob/master/LICENSE
 
-The bundled ads preset is generated from the upstream list sources declared by
-@ghostery/adblocker 2.18.2, including EasyList, Peter Lowe's list, and selected
-uBlock Origin lists. Their source notices and licenses remain available at:
+The bundled full preset is generated from the upstream list sources declared by
+@ghostery/adblocker 2.18.2, including EasyList, EasyPrivacy, cookie-notice lists,
+Peter Lowe's list, and selected uBlock Origin lists. uBlock Origin and its lists
+are GPL-3.0; their source is available at https://github.com/gorhill/uBlock and
+https://github.com/uBlockOrigin/uAssets. Other source notices and licenses are at:
 https://github.com/ghostery/adblocker/tree/master/packages/adblocker/assets
 
 The generated engine is bundled so Local does not need to fetch filter lists

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react';
 import type { Bookmark, TabState } from '../../shared/types';
+import type { ExtensionPopupView, Settings } from '../../shared/types';
 import { Icon } from './Icon';
 import { IconButton } from './IconButton';
 import { TabStrip } from './TabStrip';
@@ -9,20 +10,24 @@ interface Props {
   activeTab: TabState | undefined;
   privateWindow: boolean;
   bookmarks: Bookmark[];
-  showBookmarksBar: boolean;
+  settings: Settings;
   onSettings(): void;
   onFocusReady(handler: () => void): void;
 }
 
-export function Toolbar({ tabs, activeTab, privateWindow, bookmarks, showBookmarksBar, onSettings, onFocusReady }: Props) {
+export function Toolbar({ tabs, activeTab, privateWindow, bookmarks, settings, onSettings, onFocusReady }: Props) {
   const [value, setValue] = useState('');
   const [editing, setEditing] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => { if (!editing) setValue(formatAddress(activeTab?.url ?? '')); }, [activeTab?.url, editing]);
   useEffect(() => onFocusReady(() => { input.current?.focus(); input.current?.select(); }), [onFocusReady]);
   const submit = (event: FormEvent) => { event.preventDefault(); if (value.trim()) void window.local.navigate(value); input.current?.blur(); };
+  const showExtensions = (event: MouseEvent<HTMLButtonElement>, view: ExtensionPopupView) => {
+    const { x, y, width, height } = event.currentTarget.getBoundingClientRect();
+    void window.local.showExtensionsPopup({ x, y, width, height }, view);
+  };
 
-  return <header className={`chrome ${showBookmarksBar ? 'with-bookmarks' : ''}`}>
+  return <header className={`chrome ${settings.showBookmarksBar ? 'with-bookmarks' : ''}`}>
     <TabStrip tabs={tabs} activeTabId={activeTab?.id ?? null} privateWindow={privateWindow} />
     <div className="toolbar">
       <div className="nav-controls">
@@ -36,11 +41,14 @@ export function Toolbar({ tabs, activeTab, privateWindow, bookmarks, showBookmar
       </form>
       <div className="toolbar-actions">
         <IconButton label="Bookmark this page" icon="star" disabled={activeTab?.url.startsWith('local://')} onClick={() => void window.local.addBookmark()} />
-        <IconButton label="Extensions" icon="puzzle" onClick={() => void window.local.openExtensions()} />
+        <div className="extension-tools">
+          {settings.adBlockerPinned && <IconButton className={`pinned-extension ${settings.adBlockerEnabled ? 'active' : ''}`} label="AdBlocker" icon="block" onClick={(event) => showExtensions(event, 'adblocker')} />}
+          <IconButton label="Extensions" icon="puzzle" onClick={(event) => showExtensions(event, 'list')} />
+        </div>
         <IconButton label="Local menu" icon="menu" onClick={onSettings} />
       </div>
     </div>
-    {showBookmarksBar && <nav className="bookmarks-bar" aria-label="Bookmarks">
+    {settings.showBookmarksBar && <nav className="bookmarks-bar" aria-label="Bookmarks">
       {bookmarks.length ? bookmarks.map((bookmark) => <button key={bookmark.id} onClick={() => void window.local.navigate(bookmark.url)}>{bookmark.title}</button>) : <span>Bookmark a page with the star to keep it here.</span>}
     </nav>}
     {activeTab?.loading && <div className="chrome-loading" aria-hidden="true"><i /></div>}

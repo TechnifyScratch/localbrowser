@@ -1,7 +1,8 @@
 import { BrowserView, BrowserWindow, shell, type Session, type WebContents } from 'electron';
+import path from 'node:path';
 import type { AppSnapshot, ClosedTab, DownloadState, PermissionKind, PermissionRequest, SearchCategory, SearchResponse, TabState } from '../shared/types';
 import { configurePrivacySession, resolveInput, stripTracking } from '../privacy';
-import { configureAdBlockerSession, cosmeticAdStyles } from '../privacy/adblocker';
+import { configureAdBlockerSession, cosmeticAdPayload } from '../privacy/adblocker';
 import { LocalStore } from './storage';
 import { searchWeb } from './search';
 
@@ -221,6 +222,8 @@ export class BrowserManager {
   private createView(record: TabRecord): BrowserView {
     const view = new BrowserView({ webPreferences: {
       session: this.browserSession,
+      preload: path.join(__dirname, '../preload/web-content.js'),
+      additionalArguments: [`--local-adblock=${this.store.settings.adBlockerEnabled ? '1' : '0'}`],
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -245,8 +248,9 @@ export class BrowserManager {
     });
     contents.on('did-start-loading', () => this.update(record, { loading: true }));
     contents.on('dom-ready', () => {
-      const styles = cosmeticAdStyles(contents.getURL(), this.store.settings.adBlockerEnabled);
+      const { styles, scripts } = cosmeticAdPayload(contents.getURL(), this.store.settings.adBlockerEnabled);
       if (styles) void contents.insertCSS(styles, { cssOrigin: 'user' }).catch(() => undefined);
+      for (const script of scripts) void contents.executeJavaScript(script, true).catch(() => undefined);
     });
     contents.on('did-stop-loading', () => this.updateFromContents(record, contents));
     contents.on('did-navigate', (_event, url) => this.onNavigated(record, contents, url));

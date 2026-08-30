@@ -3,7 +3,7 @@ const path = require('node:path');
 const { FiltersEngine } = require('@ghostery/adblocker');
 
 async function main() {
-  const blocker = await FiltersEngine.fromPrebuiltAdsOnly(fetch);
+  const blocker = await FiltersEngine.fromPrebuiltFull(fetch);
   const output = path.join(__dirname, '..', 'build', 'adblocker-engine.bin');
   await fs.writeFile(output, blocker.serialize());
   process.stdout.write(`Wrote ${output}\n`);
