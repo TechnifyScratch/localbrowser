@@ -69,7 +69,7 @@ The unsigned development DMG can be opened locally. Public distribution requires
 
 Local has no application backend, accounts, analytics, telemetry SDK, ad SDK, cloud database, or sync service. Its settings, history, bookmarks, and session list are stored in a permission-restricted JSON file under Electron's macOS application-data directory. Cookies, cache, and other website storage live in Chromium's on-device `persist:local` partition. When enabled or manually requested, update checks communicate with GitHub Releases and therefore expose ordinary network metadata such as the IP address and user agent to GitHub; no Local browsing data is included.
 
-Collections and homepage preferences use that same local JSON store. Today is derived locally from recent history and bookmarks, removes duplicate URLs, and deliberately excludes search-result pages. Opening a new tab does not fetch a feed, upload history, or call a recommendation service.
+Collections and homepage preferences use that same local JSON store. Today is derived locally from recent history and bookmarks, removes duplicate URLs, and deliberately excludes search-result pages. Its image previews are small screenshots captured locally from pages while the user is already viewing them; they are capped and stored on the Mac with history. Opening a new tab does not fetch a feed, upload history, or call a recommendation service.
 
 Local’s basic All view can request DuckDuckGo’s public HTML results directly from the Mac and render sanitized result text in Local’s own interface. Search queries still leave the device and are sent to the named provider; they never pass through a Local server.
 
@@ -85,7 +85,9 @@ The All view includes an optional-looking but always local Overview assembled wi
 
 For searches whose top Wikidata entity is explicitly classified as a human, Local can show a compact person panel. It requests the public Wikipedia and Wikidata APIs directly from the Mac, shows only returned descriptions, introductory text, imagery, and structured facts, and links to the source article. Local does not infer whether someone is a person, invent missing facts, or send this data through a Local service. This means an All search may send its query to both the named web-search provider and Wikimedia.
 
-Tabs can be pinned, reordered within pinned or regular sections, duplicated, closed in groups, and reopened from an in-memory recently-closed list. Pinned state and tab order are included in optional local session restoration.
+Tabs can be pinned, reordered within pinned or regular sections, duplicated, closed in groups, and reopened from an in-memory recently-closed list. Dragging an inactive web tab onto the active web tab opens both in an instant two-pane split; either pane can take focus and toolbar commands follow the focused pane. The split opens and closes with bounds-only motion—page opacity is never animated. Pinned state and tab order are included in optional local session restoration; the temporary split arrangement is not restored after restart.
+
+When a page exposes a favicon, Local attempts to normalize it to a small PNG while that page is open and stores it with bookmarks for the bookmarks bar. Formats macOS cannot decode fall back to the website-provided favicon URL, which means showing that saved icon may make an ordinary direct request to that website or its asset host. Favicons are never proxied through or uploaded to a Local server.
 
 The toolbar’s puzzle-piece button opens an anchored extension popover above webpage content. AdBlocker can be pinned beside it for direct access, and both pin state and protection state persist locally. “Manage extensions” opens the full page at `local://extensions`. There is no marketplace or remote extension catalog.
 

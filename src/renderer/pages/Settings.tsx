@@ -43,7 +43,7 @@ export function Settings({ settings, onChange }: Props) {
       </div>
     </SettingsSection>
     <SettingsSection title="Data" aside="Stored only on this Mac"><div className="data-actions"><button onClick={() => void window.local.clearData('history')}>Clear history</button><button onClick={() => void window.local.clearData('siteData')}>Clear cookies & site data</button><button className="danger" onClick={() => { if (confirm('Clear all Local browsing data and settings?')) void window.local.clearData('all'); }}>Clear all Local data</button></div></SettingsSection>
-    <footer><button onClick={() => void window.local.openPrivateWindow()}>New private window</button><span>Local {update?.currentVersion ?? '0.18.1'}</span></footer>
+    <footer><button onClick={() => void window.local.openPrivateWindow()}>New private window</button><span>Local {update?.currentVersion ?? '0.19.0'}</span></footer>
     </div>
   </main>;
 }

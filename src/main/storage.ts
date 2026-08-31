@@ -62,9 +62,14 @@ export class LocalStore {
 
   get todayItems(): TodayItem[] {
     const savedUrls = new Set(this.data.bookmarks.map(({ url }) => url));
+    const latestThumbnail = new Map<string, string>();
+    for (const item of this.data.history) {
+      const key = canonicalUrl(item.url);
+      if (item.thumbnailDataUrl && !latestThumbnail.has(key)) latestThumbnail.set(key, item.thumbnailDataUrl);
+    }
     const combined: TodayItem[] = [
-      ...this.data.bookmarks.map((item) => ({ id: `saved-${item.id}`, title: item.title, url: item.url, source: hostname(item.url), timestamp: item.createdAt, kind: 'saved' as const })),
-      ...this.data.history.map((item) => ({ id: `recent-${item.id}`, title: item.title, url: item.url, source: hostname(item.url), timestamp: item.visitedAt, kind: savedUrls.has(item.url) ? 'saved' as const : 'recent' as const })),
+      ...this.data.bookmarks.map((item) => ({ id: `saved-${item.id}`, title: item.title, url: item.url, source: hostname(item.url), timestamp: item.createdAt, kind: 'saved' as const, thumbnailDataUrl: latestThumbnail.get(canonicalUrl(item.url)) })),
+      ...this.data.history.map((item) => ({ id: `recent-${item.id}`, title: item.title, url: item.url, source: hostname(item.url), timestamp: item.visitedAt, kind: savedUrls.has(item.url) ? 'saved' as const : 'recent' as const, thumbnailDataUrl: item.thumbnailDataUrl ?? latestThumbnail.get(canonicalUrl(item.url)) })),
     ];
     const seen = new Set<string>();
     return combined.sort((a, b) => b.timestamp - a.timestamp).filter((item) => {
@@ -90,6 +95,19 @@ export class LocalStore {
   async updateHistoryTitle(url: string, title: string): Promise<void> {
     const entry = this.data.history.find((item) => item.url === url);
     if (entry && title && entry.title !== title) { entry.title = title; await this.save(); }
+  }
+
+  async updateHistoryThumbnail(url: string, thumbnailDataUrl: string): Promise<void> {
+    const entry = this.data.history.find((item) => item.url === url);
+    if (!entry || entry.thumbnailDataUrl === thumbnailDataUrl) return;
+    entry.thumbnailDataUrl = thumbnailDataUrl;
+    let retained = 0;
+    for (const item of this.data.history) {
+      if (!item.thumbnailDataUrl) continue;
+      retained += 1;
+      if (retained > 24) delete item.thumbnailDataUrl;
+    }
+    await this.save();
   }
 
   async addBookmark(bookmark: Omit<Bookmark, 'id' | 'createdAt'>): Promise<void> {

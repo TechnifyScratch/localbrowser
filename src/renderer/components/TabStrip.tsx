@@ -6,15 +6,17 @@ import { IconButton } from './IconButton';
 interface Props {
   tabs: TabState[];
   activeTabId: string | null;
+  splitTabIds: [string, string] | null;
   privateWindow: boolean;
 }
 
-export function TabStrip({ tabs, activeTabId, privateWindow }: Props) {
+export function TabStrip({ tabs, activeTabId, splitTabIds, privateWindow }: Props) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const tabElements = useRef(new Map<string, HTMLDivElement>());
   const previousRects = useRef(new Map<string, DOMRect>());
   const layoutKey = tabs.map((tab) => `${tab.id}:${tab.pinned}`).join('|');
+  const draggingTab = tabs.find(({ id }) => id === draggingId);
 
   useLayoutEffect(() => {
     const nextRects = new Map<string, DOMRect>();
@@ -39,7 +41,9 @@ export function TabStrip({ tabs, activeTabId, privateWindow }: Props) {
 
   const drop = (event: DragEvent, target: TabState) => {
     event.preventDefault();
-    if (draggingId) void window.local.reorderTab(draggingId, target.id);
+    const source = tabs.find(({ id }) => id === draggingId);
+    if (source && canSplit(source, target, activeTabId)) void window.local.splitTabs(source.id, target.id);
+    else if (draggingId) void window.local.reorderTab(draggingId, target.id);
     setDraggingId(null);
     setDropTargetId(null);
   };
@@ -50,7 +54,7 @@ export function TabStrip({ tabs, activeTabId, privateWindow }: Props) {
       {tabs.map((tab) => <div
         key={tab.id}
         ref={(element) => { if (element) tabElements.current.set(tab.id, element); else tabElements.current.delete(tab.id); }}
-        className={`tab ${tab.id === activeTabId ? 'active' : ''} ${tab.pinned ? 'pinned' : ''} ${draggingId === tab.id ? 'dragging' : ''} ${dropTargetId === tab.id ? 'drop-target' : ''}`}
+        className={`tab ${tab.id === activeTabId ? 'active' : ''} ${splitTabIds?.includes(tab.id) ? 'split-member' : ''} ${tab.pinned ? 'pinned' : ''} ${draggingId === tab.id ? 'dragging' : ''} ${dropTargetId === tab.id ? (draggingTab && canSplit(draggingTab, tab, activeTabId) ? 'split-target' : 'drop-target') : ''}`}
         role="tab"
         tabIndex={0}
         aria-selected={tab.id === activeTabId}
@@ -62,7 +66,7 @@ export function TabStrip({ tabs, activeTabId, privateWindow }: Props) {
         onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; setDraggingId(tab.id); }}
         onDragOver={(event) => {
           const source = tabs.find(({ id }) => id === draggingId);
-          if (source?.pinned === tab.pinned) {
+          if (source && (canSplit(source, tab, activeTabId) || source.pinned === tab.pinned)) {
             event.preventDefault();
             event.dataTransfer.dropEffect = 'move';
             setDropTargetId(tab.id);
@@ -83,6 +87,12 @@ export function TabStrip({ tabs, activeTabId, privateWindow }: Props) {
     {privateWindow && <span className="private-label"><Icon name="lock" size={12} />Private</span>}
   </div>;
 }
+
+function canSplit(source: TabState, target: TabState, activeTabId: string | null): boolean {
+  return source.id !== target.id && target.id === activeTabId && isWebUrl(source.url) && isWebUrl(target.url);
+}
+
+function isWebUrl(url: string): boolean { return url.startsWith('http://') || url.startsWith('https://'); }
 
 function Favicon({ tab }: { tab: TabState }) {
   return <span className="favicon-slot"><span className="local-favicon">{faviconLetter(tab)}</span>{tab.favicon && <img className="tab-favicon" src={tab.favicon} alt="" onError={(event) => event.currentTarget.remove()} />}</span>;

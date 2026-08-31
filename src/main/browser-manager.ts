@@ -1,4 +1,4 @@
-import { BrowserView, BrowserWindow, shell, type Session, type WebContents } from 'electron';
+import { BrowserView, BrowserWindow, nativeImage, shell, type Session, type WebContents } from 'electron';
 import path from 'node:path';
 import type { AppSnapshot, ClosedTab, DownloadState, PermissionKind, PermissionRequest, SearchCategory, SearchResponse, TabState } from '../shared/types';
 import { configurePrivacySession, resolveInput, stripTracking } from '../privacy';
@@ -13,6 +13,8 @@ interface TabRecord { state: TabState; view: BrowserView | null; returnToSearch?
 export class BrowserManager {
   private tabs = new Map<string, TabRecord>();
   private activeTabId: string | null = null;
+  private splitTabIds: [string, string] | null = null;
+  private layoutAnimation = 0;
   private overlayOpen = false;
   private pendingPermissions = new Map<string, (allowed: boolean) => void>();
   private configuredSessions = new Set<Session>();
@@ -36,6 +38,7 @@ export class BrowserManager {
     return {
       tabs: [...this.tabs.values()].map(({ state }) => ({ ...state })),
       activeTabId: this.activeTabId,
+      splitTabIds: this.splitTabIds ? [...this.splitTabIds] as [string, string] : null,
       settings: this.store.settings,
       privateWindow: this.privateWindow,
       recentlyClosed: [...this.recentlyClosed],
@@ -60,10 +63,21 @@ export class BrowserManager {
   activate(id: string): void {
     const next = this.tabs.get(id);
     if (!next) return;
-    this.detachActiveView();
+    if (this.splitTabIds?.includes(id)) {
+      this.activeTabId = id;
+      if (!this.overlayOpen) {
+        this.attachDisplayedViews();
+        this.layout();
+        next.view?.webContents.focus();
+      }
+      this.emit();
+      return;
+    }
+    this.exitSplit(false);
+    this.detachDisplayedViews();
     this.activeTabId = id;
     if (next.view && !this.overlayOpen) {
-      this.window.setBrowserView(next.view);
+      this.attachView(next.view);
       this.layout();
       next.view.webContents.focus();
     }
@@ -83,6 +97,28 @@ export class BrowserManager {
     this.tabs = new Map(entries);
     this.emit();
     if (!this.privateWindow) void this.persistSession();
+  }
+
+  splitTabs(sourceId: string, targetId: string): boolean {
+    if (sourceId === targetId || targetId !== this.activeTabId) return false;
+    const source = this.tabs.get(sourceId);
+    const target = this.tabs.get(targetId);
+    if (!source?.view || !target?.view || !isWebTab(source.state.url) || !isWebTab(target.state.url)) return false;
+    this.detachDisplayedViews();
+    this.splitTabIds = [targetId, sourceId];
+    this.activeTabId = targetId;
+    if (!this.overlayOpen) {
+      this.attachDisplayedViews();
+      this.animateSplit();
+      target.view.webContents.focus();
+    }
+    this.emit();
+    return true;
+  }
+
+  closeSplitView(): void {
+    this.exitSplit(true);
+    this.emit();
   }
 
   pin(id: string, pinned: boolean): void {
@@ -117,12 +153,18 @@ export class BrowserManager {
     if (!record) return;
     const ids = [...this.tabs.keys()];
     const index = ids.indexOf(id);
+    if (this.splitTabIds?.includes(id)) {
+      const companionId = this.splitTabIds.find((tabId) => tabId !== id) ?? null;
+      this.detachDisplayedViews();
+      this.splitTabIds = null;
+      if (this.activeTabId === id) this.activeTabId = companionId;
+    }
     if (ALLOWED_PROTOCOLS.has(safeProtocol(record.state.url))) {
       this.recentlyClosed.unshift({ title: record.state.title, url: record.state.url });
       this.recentlyClosed = this.recentlyClosed.slice(0, 12);
     }
     if (record.view) {
-      if (this.activeTabId === id) this.window.removeBrowserView(record.view);
+      this.window.removeBrowserView(record.view);
       record.view.webContents.close();
     }
     this.tabs.delete(id);
@@ -131,6 +173,9 @@ export class BrowserManager {
       await this.createTab();
     } else if (!this.activeTabId) {
       this.activate(ids[index - 1] ?? ids[index + 1]);
+    } else if (!this.overlayOpen) {
+      this.attachDisplayedViews();
+      this.layout();
     }
     this.emit();
     if (!this.privateWindow) void this.persistSession();
@@ -141,25 +186,29 @@ export class BrowserManager {
     if (!record) return;
     const url = resolveInput(input, this.store.settings.searchProvider, this.store.settings.stripTrackingParameters, this.store.settings.localSearchResults);
     if (url === 'local://newtab') {
+      this.exitSplit(false);
       this.setNewTab(record);
       return;
     }
     if (isLocalSearch(url)) {
+      this.exitSplit(false);
       this.setLocalSearch(record, url);
       return;
     }
     if (url === 'local://extensions') {
+      this.exitSplit(false);
       this.setExtensions(record);
       return;
     }
     if (url === 'local://settings') {
+      this.exitSplit(false);
       this.setSettings(record);
       return;
     }
     if (isLocalSearch(record.state.url)) record.returnToSearch = record.state.url;
     const view = record.view ?? this.createView(record);
     if (!this.overlayOpen) {
-      this.window.setBrowserView(view);
+      this.attachDisplayedViews();
       this.layout();
     }
     await view.webContents.loadURL(url);
@@ -200,7 +249,7 @@ export class BrowserManager {
   async addBookmark(): Promise<void> {
     const tab = this.active?.state;
     if (tab && ALLOWED_PROTOCOLS.has(safeProtocol(tab.url))) {
-      await this.store.addBookmark({ title: tab.title, url: tab.url });
+      await this.store.addBookmark({ title: tab.title, url: tab.url, favicon: tab.favicon });
       this.emit();
     }
   }
@@ -209,9 +258,9 @@ export class BrowserManager {
 
   setOverlay(open: boolean): void {
     this.overlayOpen = open;
-    this.detachActiveView();
-    if (!open && this.active?.view) {
-      this.window.setBrowserView(this.active.view);
+    this.detachDisplayedViews();
+    if (!open) {
+      this.attachDisplayedViews();
       this.layout();
     }
   }
@@ -256,7 +305,10 @@ export class BrowserManager {
       if (styles) void contents.insertCSS(styles, { cssOrigin: 'user' }).catch(() => undefined);
       for (const script of scripts) void contents.executeJavaScript(script, true).catch(() => undefined);
     });
-    contents.on('did-stop-loading', () => this.updateFromContents(record, contents));
+    contents.on('did-stop-loading', () => {
+      this.updateFromContents(record, contents);
+      if (!this.privateWindow) setTimeout(() => { void this.captureThumbnail(record, contents); }, 280);
+    });
     contents.on('did-navigate', (_event, url) => this.onNavigated(record, contents, url));
     contents.on('did-navigate-in-page', (_event, url) => this.onNavigated(record, contents, url));
     contents.on('page-title-updated', (_event, title) => {
@@ -264,9 +316,51 @@ export class BrowserManager {
       this.update(record, { title: resolvedTitle });
       if (!this.privateWindow && ALLOWED_PROTOCOLS.has(safeProtocol(record.state.url))) void this.store.updateHistoryTitle(record.state.url, resolvedTitle);
     });
-    contents.on('page-favicon-updated', (_event, favicons) => this.update(record, { favicon: favicons[0] }));
+    contents.on('page-favicon-updated', (_event, favicons) => { if (favicons[0]) void this.cacheFavicon(record, favicons[0]); });
+    contents.on('focus', () => {
+      if (!this.splitTabIds?.includes(record.state.id) || this.activeTabId === record.state.id) return;
+      this.activeTabId = record.state.id;
+      this.emit();
+    });
     contents.on('render-process-gone', () => this.update(record, { loading: false, title: 'Page unavailable' }));
     return view;
+  }
+
+  private async cacheFavicon(record: TabRecord, faviconUrl: string): Promise<void> {
+    try {
+      if (faviconUrl.startsWith('data:image/') && faviconUrl.length <= 700_000) {
+        const image = nativeImage.createFromDataURL(faviconUrl);
+        const normalized = normalizeFavicon(image);
+        this.update(record, { favicon: normalized ?? faviconUrl });
+        return;
+      }
+      if (!ALLOWED_PROTOCOLS.has(safeProtocol(faviconUrl))) return;
+      this.update(record, { favicon: faviconUrl });
+      const response = await this.browserSession.fetch(faviconUrl);
+      if (!response.ok) return;
+      const mime = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+      if (!mime?.startsWith('image/')) return;
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (!bytes.length || bytes.length > 512_000) return;
+      const normalized = normalizeFavicon(nativeImage.createFromBuffer(bytes));
+      this.update(record, { favicon: normalized ?? faviconUrl });
+    } catch {
+      // A missing favicon should never affect navigation.
+    }
+  }
+
+  private async captureThumbnail(record: TabRecord, contents: WebContents): Promise<void> {
+    const url = contents.getURL();
+    if (!isWebTab(url) || record.state.url !== url || contents.isDestroyed()) return;
+    try {
+      const image = await contents.capturePage();
+      if (image.isEmpty() || record.state.url !== url) return;
+      const thumbnail = image.resize({ width: 480, height: 270, quality: 'good' });
+      const dataUrl = `data:image/jpeg;base64,${thumbnail.toJPEG(70).toString('base64')}`;
+      await this.store.updateHistoryThumbnail(url, dataUrl);
+    } catch {
+      // Some protected or crashed pages cannot be captured.
+    }
   }
 
   private onNavigated(record: TabRecord, contents: WebContents, url: string): void {
@@ -388,20 +482,104 @@ export class BrowserManager {
   }
 
   private layout(): void {
-    const view = this.active?.view;
-    if (!view || this.overlayOpen) return;
+    this.layoutAnimation += 1;
+    if (this.overlayOpen) return;
+    const records = this.displayedRecords();
+    if (!records.length) return;
     const [width, height] = this.window.getContentSize();
     const chromeHeight = this.store.settings.showBookmarksBar ? 146 : 116;
-    view.setBounds({ x: 0, y: chromeHeight, width, height: Math.max(0, height - chromeHeight) });
-    view.setAutoResize({ width: true, height: true });
+    const contentHeight = Math.max(0, height - chromeHeight);
+    if (records.length === 2) {
+      const gap = 4;
+      const leftWidth = Math.floor((width - gap) / 2);
+      const rightWidth = Math.max(0, width - gap - leftWidth);
+      records[0].view?.setBounds({ x: 0, y: chromeHeight, width: leftWidth, height: contentHeight });
+      records[1].view?.setBounds({ x: leftWidth + gap, y: chromeHeight, width: rightWidth, height: contentHeight });
+      records.forEach(({ view }) => view?.setAutoResize({ width: false, height: false }));
+      return;
+    }
+    records[0].view?.setBounds({ x: 0, y: chromeHeight, width, height: contentHeight });
+    records[0].view?.setAutoResize({ width: true, height: true });
   }
 
-  private detachActiveView(): void { if (this.active?.view) this.window.removeBrowserView(this.active.view); }
+  private animateSplit(): void {
+    const records = this.displayedRecords();
+    if (records.length !== 2 || !records[0].view || !records[1].view) return;
+    const [width, height] = this.window.getContentSize();
+    const y = this.store.settings.showBookmarksBar ? 146 : 116;
+    const contentHeight = Math.max(0, height - y);
+    const gap = 4;
+    const leftWidth = Math.floor((width - gap) / 2);
+    const rightWidth = Math.max(0, width - gap - leftWidth);
+    const left = records[0].view;
+    const right = records[1].view;
+    left.setAutoResize({ width: false, height: false });
+    right.setAutoResize({ width: false, height: false });
+    left.setBounds({ x: 0, y, width, height: contentHeight });
+    right.setBounds({ x: width, y, width: rightWidth, height: contentHeight });
+    const token = ++this.layoutAnimation;
+    const startedAt = Date.now();
+    const duration = 230;
+    const step = () => {
+      if (token !== this.layoutAnimation || this.overlayOpen || !this.splitTabIds) return;
+      const progress = Math.min(1, (Date.now() - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 4);
+      left.setBounds({ x: 0, y, width: Math.round(width + (leftWidth - width) * eased), height: contentHeight });
+      right.setBounds({ x: Math.round(width + (leftWidth + gap - width) * eased), y, width: rightWidth, height: contentHeight });
+      if (progress < 1) setTimeout(step, 16);
+    };
+    step();
+  }
+
+  private exitSplit(animate: boolean): void {
+    if (!this.splitTabIds) return;
+    const activeView = this.active?.view;
+    const from = activeView?.getBounds();
+    this.detachDisplayedViews();
+    this.splitTabIds = null;
+    if (!activeView || this.overlayOpen) return;
+    this.attachView(activeView);
+    if (!animate || !from) {
+      this.layout();
+      return;
+    }
+    const [width, height] = this.window.getContentSize();
+    const y = this.store.settings.showBookmarksBar ? 146 : 116;
+    const target = { x: 0, y, width, height: Math.max(0, height - y) };
+    activeView.setAutoResize({ width: false, height: false });
+    const token = ++this.layoutAnimation;
+    const startedAt = Date.now();
+    const duration = 210;
+    const step = () => {
+      if (token !== this.layoutAnimation || this.overlayOpen || this.splitTabIds) return;
+      const progress = Math.min(1, (Date.now() - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 4);
+      activeView.setBounds({
+        x: Math.round(from.x + (target.x - from.x) * eased),
+        y: target.y,
+        width: Math.round(from.width + (target.width - from.width) * eased),
+        height: target.height,
+      });
+      if (progress < 1) setTimeout(step, 16);
+      else activeView.setAutoResize({ width: true, height: true });
+    };
+    step();
+  }
+
+  private displayedRecords(): TabRecord[] {
+    if (this.splitTabIds) return this.splitTabIds.map((id) => this.tabs.get(id)).filter((record): record is TabRecord => Boolean(record?.view));
+    return this.active ? [this.active] : [];
+  }
+
+  private attachDisplayedViews(): void { this.displayedRecords().forEach(({ view }) => { if (view) this.attachView(view); }); }
+  private attachView(view: BrowserView): void { if (!this.window.getBrowserViews().includes(view)) this.window.addBrowserView(view); }
+  private detachDisplayedViews(): void { for (const view of this.window.getBrowserViews()) this.window.removeBrowserView(view); }
   private emit(): void { if (!this.window.isDestroyed()) this.window.webContents.send('state:snapshot', this.snapshot); }
   private async persistSession(): Promise<void> {
     await this.store.setSessionTabs([...this.tabs.values()].map(({ state }) => ({ url: state.url, pinned: state.pinned })).filter(({ url }) => ALLOWED_PROTOCOLS.has(safeProtocol(url))));
   }
   private dispose(): void {
+    this.layoutAnimation += 1;
     for (const { view } of this.tabs.values()) view?.webContents.close();
     this.searchCache.clear();
     if (this.privateWindow) void this.browserSession.clearStorageData();
@@ -411,4 +589,10 @@ export class BrowserManager {
 function safeProtocol(url: string): string { try { return new URL(url).protocol; } catch { return ''; } }
 function hostname(url: string): string { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } }
 function isLocalSearch(url: string): boolean { return url.startsWith('local://search?'); }
+function isWebTab(url: string): boolean { return ALLOWED_PROTOCOLS.has(safeProtocol(url)); }
+function normalizeFavicon(image: Electron.NativeImage): string | undefined {
+  if (image.isEmpty()) return undefined;
+  const png = image.resize({ width: 32, height: 32, quality: 'best' }).toPNG();
+  return png.length && png.length <= 100_000 ? `data:image/png;base64,${png.toString('base64')}` : undefined;
+}
 function searchQuery(url: string): string { try { return new URL(url).searchParams.get('q') ?? ''; } catch { return ''; } }

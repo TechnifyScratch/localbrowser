@@ -52,6 +52,7 @@ export interface DownloadState {
 export interface AppSnapshot {
   tabs: TabState[];
   activeTabId: string | null;
+  splitTabIds: [string, string] | null;
   settings: Settings;
   privateWindow: boolean;
   recentlyClosed: ClosedTab[];
@@ -62,6 +63,7 @@ export interface HistoryEntry {
   title: string;
   url: string;
   visitedAt: number;
+  thumbnailDataUrl?: string;
 }
 
 export interface Bookmark {
@@ -69,6 +71,7 @@ export interface Bookmark {
   title: string;
   url: string;
   createdAt: number;
+  favicon?: string;
 }
 
 export interface TodayItem {
@@ -78,6 +81,7 @@ export interface TodayItem {
   source: string;
   timestamp: number;
   kind: 'recent' | 'saved';
+  thumbnailDataUrl?: string;
 }
 
 export interface SearchResult {
@@ -154,6 +158,8 @@ export interface LocalAPI {
   closeTab(id: string): Promise<void>;
   activateTab(id: string): Promise<void>;
   reorderTab(sourceId: string, targetId: string): Promise<void>;
+  splitTabs(sourceId: string, targetId: string): Promise<boolean>;
+  closeSplitView(): Promise<void>;
   pinTab(id: string, pinned: boolean): Promise<void>;
   duplicateTab(id: string): Promise<void>;
   closeOtherTabs(id: string): Promise<void>;
@@ -177,7 +183,7 @@ export interface LocalAPI {
   setOverlay(open: boolean): Promise<void>;
   clearData(scope: 'history' | 'siteData' | 'all'): Promise<void>;
   addBookmark(): Promise<void>;
-  addBookmarkUrl(bookmark: { title: string; url: string }): Promise<void>;
+  addBookmarkUrl(bookmark: { title: string; url: string; favicon?: string }): Promise<void>;
   getBookmarks(): Promise<Bookmark[]>;
   getTodayItems(): Promise<TodayItem[]>;
   getCollections(): Promise<Collection[]>;

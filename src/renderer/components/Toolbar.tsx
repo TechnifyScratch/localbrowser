@@ -8,6 +8,7 @@ import { TabStrip } from './TabStrip';
 interface Props {
   tabs: TabState[];
   activeTab: TabState | undefined;
+  splitTabIds: [string, string] | null;
   privateWindow: boolean;
   bookmarks: Bookmark[];
   settings: Settings;
@@ -15,7 +16,7 @@ interface Props {
   onFocusReady(handler: () => void): void;
 }
 
-export function Toolbar({ tabs, activeTab, privateWindow, bookmarks, settings, onSettings, onFocusReady }: Props) {
+export function Toolbar({ tabs, activeTab, splitTabIds, privateWindow, bookmarks, settings, onSettings, onFocusReady }: Props) {
   const [value, setValue] = useState('');
   const [editing, setEditing] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -28,7 +29,7 @@ export function Toolbar({ tabs, activeTab, privateWindow, bookmarks, settings, o
   };
 
   return <header className={`chrome ${settings.showBookmarksBar ? 'with-bookmarks' : ''}`}>
-    <TabStrip tabs={tabs} activeTabId={activeTab?.id ?? null} privateWindow={privateWindow} />
+    <TabStrip tabs={tabs} activeTabId={activeTab?.id ?? null} splitTabIds={splitTabIds} privateWindow={privateWindow} />
     <div className="toolbar">
       <div className="nav-controls">
         <IconButton label="Back" icon="arrow-left" disabled={!activeTab?.canGoBack} onClick={() => void window.local.goBack()} />
@@ -40,6 +41,7 @@ export function Toolbar({ tabs, activeTab, privateWindow, bookmarks, settings, o
         <input ref={input} value={value} onChange={(event) => setValue(event.target.value)} onFocus={() => { setEditing(true); setValue(activeTab?.url === 'local://newtab' ? '' : activeTab?.url ?? ''); requestAnimationFrame(() => input.current?.select()); }} onBlur={() => { setEditing(false); setValue(formatAddress(activeTab?.url ?? '')); }} placeholder="Search or enter a website" aria-label="Search or enter a website" spellCheck={false} />
       </form>
       <div className="toolbar-actions">
+        {splitTabIds && <IconButton className="split-view-button selected" label="Exit split view" icon="split" onClick={() => void window.local.closeSplitView()} />}
         <IconButton label="Bookmark this page" icon="star" disabled={activeTab?.url.startsWith('local://')} onClick={() => void window.local.addBookmark()} />
         <div className="extension-tools">
           {settings.adBlockerPinned && <IconButton className={`pinned-extension ${settings.adBlockerEnabled ? 'active' : ''}`} label="AdBlocker" icon="block" onClick={(event) => showExtensions(event, 'adblocker')} />}
@@ -49,11 +51,13 @@ export function Toolbar({ tabs, activeTab, privateWindow, bookmarks, settings, o
       </div>
     </div>
     {settings.showBookmarksBar && <nav className="bookmarks-bar" aria-label="Bookmarks">
-      {bookmarks.length ? bookmarks.map((bookmark) => <button key={bookmark.id} onClick={() => void window.local.navigate(bookmark.url)}>{bookmark.title}</button>) : <span>Bookmark a page with the star to keep it here.</span>}
+      {bookmarks.length ? bookmarks.map((bookmark) => <button key={bookmark.id} onClick={() => void window.local.navigate(bookmark.url)}><span className="bookmark-favicon"><i>{bookmarkInitial(bookmark.url)}</i>{bookmark.favicon && <img src={bookmark.favicon} alt="" onError={(event) => event.currentTarget.remove()} />}</span><span>{bookmark.title}</span></button>) : <span>Bookmark a page with the star to keep it here.</span>}
     </nav>}
     {activeTab?.loading && <div className="chrome-loading" aria-hidden="true"><i /></div>}
   </header>;
 }
+
+function bookmarkInitial(url: string): string { try { return new URL(url).hostname.replace(/^www\./, '')[0]?.toUpperCase() ?? '•'; } catch { return '•'; } }
 
 function formatAddress(url: string): string {
   if (!url || url === 'local://newtab') return '';

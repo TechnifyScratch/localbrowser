@@ -1,6 +1,6 @@
 import type { ReactNode, SVGProps } from 'react';
 
-export type IconName = 'arrow-left' | 'arrow-right' | 'reload' | 'x' | 'plus' | 'search' | 'star' | 'menu' | 'folder' | 'trash' | 'edit' | 'external' | 'bookmark' | 'shield' | 'sliders' | 'check' | 'lock' | 'chevron-right' | 'more' | 'download' | 'history' | 'pin' | 'pin-off' | 'copy' | 'tabs' | 'sparkle' | 'play' | 'puzzle' | 'block';
+export type IconName = 'arrow-left' | 'arrow-right' | 'reload' | 'x' | 'plus' | 'search' | 'star' | 'menu' | 'folder' | 'trash' | 'edit' | 'external' | 'bookmark' | 'shield' | 'sliders' | 'check' | 'lock' | 'chevron-right' | 'more' | 'download' | 'history' | 'pin' | 'pin-off' | 'copy' | 'tabs' | 'split' | 'sparkle' | 'play' | 'puzzle' | 'block';
 
 export function Icon({ name, size = 18, ...props }: SVGProps<SVGSVGElement> & { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
@@ -29,6 +29,7 @@ export function Icon({ name, size = 18, ...props }: SVGProps<SVGSVGElement> & { 
     'pin-off': <><path d="M8.5 3h7"/><path d="M10 3v6l-3 4h10l-3-4V3"/><path d="M12 13v8"/><path d="m4 4 16 16"/></>,
     copy: <><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></>,
     tabs: <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v14M13 5v14"/></>,
+    split: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/><path d="m8 10-2 2 2 2M16 10l2 2-2 2"/></>,
     sparkle: <><path d="M12 3c.6 4.1 2.9 6.4 7 7-4.1.6-6.4 2.9-7 7-.6-4.1-2.9-6.4-7-7 4.1-.6 6.4-2.9 7-7Z"/><path d="M19 16c.2 1.7 1.2 2.7 3 3-1.8.3-2.8 1.3-3 3-.3-1.7-1.3-2.7-3-3 1.7-.3 2.7-1.3 3-3Z"/></>,
     play: <path d="m9 7 8 5-8 5V7Z"/>,
     puzzle: <path d="M19 13.5V19a2 2 0 0 1-2 2h-5.5a1 1 0 0 1-.9-1.43 2.6 2.6 0 1 0-4.7 0A1 1 0 0 1 5 21H3a2 2 0 0 1-2-2v-5.5a1 1 0 0 1 1.43-.9 2.6 2.6 0 1 0 0-4.7A1 1 0 0 1 1 7V5a2 2 0 0 1 2-2h5.5a1 1 0 0 1 .9 1.43 2.6 2.6 0 1 0 4.7 0A1 1 0 0 1 15 3h2a2 2 0 0 1 2 2v2.5a1 1 0 0 0 1.43.9 2.6 2.6 0 1 1 0 4.7 1 1 0 0 0-1.43.9Z"/>,

@@ -16,7 +16,7 @@ export function Today() {
     {items?.length ? <div className="article-grid">
       {items.map((item) => <article className="article-card activity-card" key={item.id}>
         <button className="article-open" onClick={() => void window.local.navigate(item.url)} aria-label={`Open ${item.title}`}>
-          <div className={`activity-visual tone-${toneFor(item.source)}`}><span>{initials(item.source)}</span><small>{item.kind === 'saved' ? 'Saved' : relativeTime(item.timestamp)}</small></div>
+          <div className={`activity-visual tone-${toneFor(item.source)} ${item.thumbnailDataUrl ? 'has-thumbnail' : ''}`}>{item.thumbnailDataUrl && <img src={item.thumbnailDataUrl} alt="" />}<span>{initials(item.source)}</span><small>{item.kind === 'saved' ? 'Saved' : relativeTime(item.timestamp)}</small></div>
           <div className="article-copy"><h3>{item.title || item.source}</h3><p>{item.source}</p></div>
         </button>
         <button className={`article-save ${item.kind === 'saved' ? 'saved' : ''}`} aria-label={item.kind === 'saved' ? 'Saved' : `Bookmark ${item.title}`} disabled={item.kind === 'saved'} onClick={() => void save(item)}><Icon name={item.kind === 'saved' ? 'check' : 'bookmark'} size={17} /></button>

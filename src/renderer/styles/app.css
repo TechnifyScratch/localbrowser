@@ -68,7 +68,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .tab-close:hover { opacity: 1 !important; background: #e9e8e5; }
 .tab.pinned { flex: 0 0 38px; min-width: 38px; max-width: 38px; justify-content: center; padding: 0; }
 .tab.pinned.active::after { content: ""; position: absolute; left: 50%; bottom: 3px; width: 3px; height: 3px; border-radius: 50%; background: #7a5bdb; transform: translateX(-50%); }
-.tab.dragging { opacity: .38; }.tab.drop-target { transform: translateX(2px); box-shadow: -2px 0 0 #8668df; }
+.tab.dragging { opacity: .38; }.tab.drop-target { transform: translateX(2px); box-shadow: -2px 0 0 #8668df; }.tab.split-member { border-color: #dcd8e7; background: #faf9fc; }.tab.split-member::before { content: ""; position: absolute; right: 9px; bottom: 3px; left: 9px; height: 2px; border-radius: 2px; background: linear-gradient(90deg,#7359df,#d36da8); opacity: .55; }.tab.split-member.active::before { opacity: 1; }.tab.split-target { transform: translateY(-1px); border-color: rgba(116,87,216,.5); background: #f7f4ff; box-shadow: 0 0 0 3px rgba(116,87,216,.08); }
 .pinned-loading { position: absolute; right: 3px; top: 3px; width: 4px; height: 4px; border-radius: 50%; background: #8262df; }
 .tab-overview-button { -webkit-app-region: no-drag; height: 29px; display: flex; align-items: center; gap: 5px; margin-bottom: 2px; border: 0; border-radius: 7px; background: transparent; padding: 0 7px; color: #68655f; font-size: 9px; }
 .tab-overview-button:hover { background: #eae9e6; color: #2f2e2b; }
@@ -117,7 +117,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .address-wrap input { min-width: 0; flex: 1; height: 100%; border: 0; outline: 0; background: transparent; color: #2a2926; font-size: 13px; font-weight: 400; text-align: left; }
 .address-wrap input::placeholder { color: #96938e; }
 .bookmarks-bar { height: 30px; display: flex; align-items: center; gap: 3px; overflow: hidden; padding: 0 22px 7px; background: rgba(255,255,255,.78); }
-.bookmarks-bar button { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; border-radius: 6px; background: transparent; padding: 4px 8px; color: #5e5c57; font-size: 10px; }
+.bookmarks-bar button { max-width: 180px; display: inline-flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; border: 0; border-radius: 6px; background: transparent; padding: 4px 8px; color: #5e5c57; font-size: 10px; }.bookmark-favicon { position: relative; width: 14px; height: 14px; flex: none; overflow: visible !important; }.bookmark-favicon img, .bookmark-favicon i { position: absolute; inset: 0; width: 14px; height: 14px; border-radius: 3px; background: #fff; object-fit: cover; }.bookmark-favicon i { display: grid; place-items: center; border: 1px solid #d8d5cf; color: #4b4843; font-size: 8px; font-style: normal; font-weight: 750; }.bookmarks-bar button > span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .bookmarks-bar button:hover { background: #ecebe8; }
 .bookmarks-bar > span { color: #a4a19b; font-size: 10px; }
 .chrome-loading { position: absolute; z-index: 8; right: 0; bottom: -1px; left: 0; height: 2px; overflow: hidden; pointer-events: none; }
@@ -196,6 +196,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .article-save:hover { background: #f1f0ed; }.article-save.saved { color: #7258d9; }
 .article-save:disabled { opacity: 1; }
 .activity-visual { position: relative; aspect-ratio: 16 / 9; overflow: hidden; display: flex; align-items: flex-end; justify-content: space-between; padding: 12px; }
+.activity-visual > img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; transition: transform 260ms var(--ease-out); }.article-card:hover .activity-visual > img { transform: scale(1.018); }.activity-visual.has-thumbnail::before { z-index: 1; inset: auto 0 0; width: auto; height: 45%; border-radius: 0; background: linear-gradient(transparent,rgba(18,17,15,.22)); opacity: 1; }.activity-visual.has-thumbnail::after { display: none; }.activity-visual.has-thumbnail > span { display: none; }
 .activity-visual::before, .activity-visual::after { content: ""; position: absolute; border-radius: 50%; opacity: .48; }
 .activity-visual::before { width: 130px; height: 130px; right: -35px; top: -54px; background: rgba(255,255,255,.58); }.activity-visual::after { width: 75px; height: 75px; left: -22px; bottom: -30px; border: 1px solid rgba(255,255,255,.66); }
 .activity-visual > span { position: relative; z-index: 1; align-self: center; margin-left: auto; margin-right: auto; color: rgba(30,27,23,.65); font-family: Arial, Helvetica, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: 0; }.activity-visual > small { position: absolute; z-index: 2; left: 9px; bottom: 8px; border: 1px solid rgba(255,255,255,.62); border-radius: 6px; background: rgba(255,255,255,.78); padding: 3px 6px; color: #4f4c47; font-size: 8px; backdrop-filter: blur(7px); }

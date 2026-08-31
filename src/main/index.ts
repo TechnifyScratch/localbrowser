@@ -136,6 +136,11 @@ function registerIpc(): void {
   ipcMain.handle('tabs:close', async (event, id: unknown) => { if (typeof id === 'string') await managerFor(event).close(id); });
   ipcMain.handle('tabs:activate', (event, id: unknown) => { if (typeof id === 'string') managerFor(event).activate(id); });
   ipcMain.handle('tabs:reorder', (event, sourceId: unknown, targetId: unknown) => { if (typeof sourceId === 'string' && typeof targetId === 'string') managerFor(event).reorder(sourceId, targetId); });
+  ipcMain.handle('tabs:split', (event, sourceId: unknown, targetId: unknown) => {
+    if (typeof sourceId !== 'string' || typeof targetId !== 'string') return false;
+    return managerFor(event).splitTabs(sourceId, targetId);
+  });
+  ipcMain.handle('tabs:close-split', (event) => managerFor(event).closeSplitView());
   ipcMain.handle('tabs:pin', (event, id: unknown, pinned: unknown) => { if (typeof id === 'string' && typeof pinned === 'boolean') managerFor(event).pin(id, pinned); });
   ipcMain.handle('tabs:duplicate', async (event, id: unknown) => { if (typeof id === 'string') await managerFor(event).duplicate(id); });
   ipcMain.handle('tabs:close-others', async (event, id: unknown) => { if (typeof id === 'string') await managerFor(event).closeOthers(id); });
@@ -323,7 +328,7 @@ function validateColor(value: unknown): CollectionColor {
   return value as CollectionColor;
 }
 
-function validateSavedItem(value: unknown): { title: string; url: string } {
+function validateSavedItem(value: unknown): { title: string; url: string; favicon?: string } {
   if (!value || typeof value !== 'object') throw new Error('Invalid saved site');
   const input = value as Record<string, unknown>;
   const title = validateName(input.title);
@@ -331,7 +336,8 @@ function validateSavedItem(value: unknown): { title: string; url: string } {
   const candidate = /^[a-z][a-z\d+.-]*:\/\//i.test(input.url.trim()) ? input.url.trim() : `https://${input.url.trim()}`;
   const url = new URL(candidate);
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Only web URLs can be saved');
-  return { title, url: url.toString() };
+  const favicon = typeof input.favicon === 'string' && input.favicon.startsWith('data:image/') && input.favicon.length <= 700_000 ? input.favicon : undefined;
+  return { title, url: url.toString(), favicon };
 }
 
 app.whenReady().then(async () => {

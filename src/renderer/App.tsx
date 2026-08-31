@@ -41,7 +41,7 @@ export function App() {
   if (!snapshot.settings.onboardingComplete && !snapshot.privateWindow) return <><Onboarding onComplete={() => void changeSettings({ onboardingComplete: true })} />{launchScreen}</>;
 
   return <div className="app-shell">
-    <Toolbar tabs={snapshot.tabs} activeTab={activeTab} privateWindow={snapshot.privateWindow} bookmarks={bookmarks} settings={snapshot.settings} onSettings={openSettings} onFocusReady={(handler) => { focusAddress.current = handler; }} />
+    <Toolbar tabs={snapshot.tabs} activeTab={activeTab} splitTabIds={snapshot.splitTabIds} privateWindow={snapshot.privateWindow} bookmarks={bookmarks} settings={snapshot.settings} onSettings={openSettings} onFocusReady={(handler) => { focusAddress.current = handler; }} />
     {activeTab?.url === 'local://newtab' && <NewTab privateWindow={snapshot.privateWindow} settings={snapshot.settings} onChangeSettings={(patch) => void changeSettings(patch)} onOpenSettings={openSettings} />}
     {activeTab?.url.startsWith('local://search?') && <SearchResults url={activeTab.url} privateWindow={snapshot.privateWindow} />}
     {activeTab?.url === 'local://extensions' && <Extensions settings={snapshot.settings} onChange={(patch) => void changeSettings(patch)} />}
